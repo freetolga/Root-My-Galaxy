@@ -53,7 +53,7 @@
 
     <string name="install_title">Install</string>
     <string name="install_keep_open">Keep this screen open until installation finishes</string>
-    <string name="install_live_progress">Live progress</string>
+    <string name="install_live_progress">Log</string>
     <string name="install_preparing">Preparing…</string>
     <string name="step_support_title">Support check</string>
     <string name="step_support_detail">Verify device and firmware profile</string>
@@ -66,7 +66,7 @@
     <string name="phase_checking">Checking the supported device and firmware</string>
     <string name="phase_ready">Ready to install</string>
     <string name="phase_downloading">Downloading commit-pinned signed payloads from GitHub</string>
-    <string name="phase_exploiting">Running in a native process isolated from ART</string>
+    <string name="phase_exploiting">This may take 10 minutes or longer. Your device may become hot or stop responding.</string>
     <string name="phase_loading_ksu">Loading KernelSU with the acquired bootstrap root</string>
     <string name="phase_installed">KernelSU module and control channel verified</string>
     <string name="phase_failed">Review the failure point in the log below</string>
