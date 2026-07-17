@@ -8,7 +8,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -51,13 +55,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -67,10 +74,12 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.busung.s25uroot.ui.theme.RootMyGalaxyTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val installViewModel by viewModels<InstallViewModel>()
@@ -476,11 +485,31 @@ private fun SideChoiceMenu(
     onSelected: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
+    var visible by remember { mutableStateOf(false) }
+    var closing by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun closeMenu(afterAnimation: () -> Unit) {
+        if (closing) return
+        closing = true
+        visible = false
+        coroutineScope.launch {
+            delay(MENU_EXIT_MILLIS)
+            afterAnimation()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    Popup(
+        onDismissRequest = { closeMenu(onDismiss) },
+        properties = PopupProperties(
+            focusable = true,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+            clippingEnabled = false,
         ),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -495,68 +524,92 @@ private fun SideChoiceMenu(
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = onDismiss,
+                        onClick = { closeMenu(onDismiss) },
                     ),
             )
-            Surface(
+            AnimatedVisibility(
+                visible = visible,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = constrainedTop, end = 18.dp)
-                    .width(196.dp)
-                    .heightIn(max = 620.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    ),
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 8.dp,
-                shadowElevation = 10.dp,
+                    .padding(top = constrainedTop, end = 18.dp),
+                enter = scaleIn(
+                    animationSpec = keyframes {
+                        durationMillis = 260
+                        1.08f at 130
+                        0.97f at 210
+                    },
+                    initialScale = 0.72f,
+                    transformOrigin = TransformOrigin(1f, 0f),
+                ),
+                exit = scaleOut(
+                    animationSpec = keyframes {
+                        durationMillis = MENU_EXIT_MILLIS.toInt()
+                        1.05f at 65
+                    },
+                    targetScale = 0.8f,
+                    transformOrigin = TransformOrigin(1f, 0f),
+                ),
             ) {
-                LazyColumn(
-                    contentPadding = PaddingValues(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                Surface(
+                    modifier = Modifier
+                        .width(196.dp)
+                        .heightIn(max = 620.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 8.dp,
+                    shadowElevation = 10.dp,
                 ) {
-                    itemsIndexed(choices) { index, choice ->
-                        val selected = index == selectedIndex
-                        Surface(
-                            onClick = { onSelected(index) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = if (selected) {
-                                MaterialTheme.shapes.extraLarge
-                            } else {
-                                MaterialTheme.shapes.medium
-                            },
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                Color.Transparent
-                            },
-                            contentColor = if (selected) {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    LazyColumn(
+                        contentPadding = PaddingValues(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        itemsIndexed(choices) { index, choice ->
+                            val selected = index == selectedIndex
+                            Surface(
+                                onClick = {
+                                    closeMenu { onSelected(index) }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = if (selected) {
+                                    MaterialTheme.shapes.extraLarge
+                                } else {
+                                    MaterialTheme.shapes.medium
+                                },
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    Color.Transparent
+                                },
+                                contentColor = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
                             ) {
-                                if (selected) {
-                                    Icon(
-                                        Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(22.dp),
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    if (selected) {
+                                        Icon(
+                                            Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(22.dp),
+                                        )
+                                    }
+                                    Text(
+                                        text = choice,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        maxLines = 1,
                                     )
                                 }
-                                Text(
-                                    text = choice,
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    maxLines = 1,
-                                )
                             }
                         }
                     }
@@ -565,6 +618,8 @@ private fun SideChoiceMenu(
         }
     }
 }
+
+private const val MENU_EXIT_MILLIS = 190L
 
 @Composable
 private fun languageLabel(tag: String): String = when {
