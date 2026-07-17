@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Typography
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -41,6 +42,28 @@ private val palettes = mapOf(
     ),
 )
 
+private val stableDarkScheme = darkColorScheme()
+
+private fun ColorScheme.withStableDarkSurfaces(): ColorScheme = copy(
+    background = stableDarkScheme.background,
+    onBackground = stableDarkScheme.onBackground,
+    surface = stableDarkScheme.surface,
+    onSurface = stableDarkScheme.onSurface,
+    surfaceVariant = stableDarkScheme.surfaceVariant,
+    onSurfaceVariant = stableDarkScheme.onSurfaceVariant,
+    surfaceDim = stableDarkScheme.surfaceDim,
+    surfaceBright = stableDarkScheme.surfaceBright,
+    surfaceContainerLowest = stableDarkScheme.surfaceContainerLowest,
+    surfaceContainerLow = stableDarkScheme.surfaceContainerLow,
+    surfaceContainer = stableDarkScheme.surfaceContainer,
+    surfaceContainerHigh = stableDarkScheme.surfaceContainerHigh,
+    surfaceContainerHighest = stableDarkScheme.surfaceContainerHighest,
+    outline = stableDarkScheme.outline,
+    outlineVariant = stableDarkScheme.outlineVariant,
+    inverseSurface = stableDarkScheme.inverseSurface,
+    inverseOnSurface = stableDarkScheme.inverseOnSurface,
+)
+
 private val AppTypography = Typography(
     displaySmall = TextStyle(fontSize = 38.sp, lineHeight = 44.sp, fontWeight = FontWeight.Light),
     headlineLarge = TextStyle(fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Normal),
@@ -65,7 +88,7 @@ fun RootMyGalaxyTheme(
     val palette = palettes[accentColor]
     val colors = when {
         accentColor == AccentColor.Dynamic && darkTheme ->
-            dynamicDarkColorScheme(context)
+            dynamicDarkColorScheme(context).withStableDarkSurfaces()
         accentColor == AccentColor.Dynamic ->
             dynamicLightColorScheme(context)
         palette != null && darkTheme -> darkColorScheme(
