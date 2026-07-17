@@ -133,13 +133,16 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         val helper = helperFile()
         require(helper.canExecute()) { app.getString(R.string.error_helper_unavailable) }
         val logPrefix = mutableState.value.log
-        val process = ProcessBuilder(
+        val bootId = currentBootId()
+        val processBuilder = ProcessBuilder(
             helper.absolutePath,
             "--run-payload",
             payload.absolutePath,
             helper.absolutePath,
             logFile.absolutePath,
-        ).redirectErrorStream(true).start()
+        ).redirectErrorStream(true)
+        cachedP0Offset(bootId)?.let { processBuilder.environment()[P0_OFFSET_ENV] = it }
+        val process = processBuilder.start()
 
         try {
             val startedAt = SystemClock.elapsedRealtime()
@@ -148,6 +151,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
             while (process.isAlive) {
                 val rawLog = logFile.readTextIfPresent()
                 if (rawLog != lastRawLog) {
+                    cacheP0Offset(bootId, rawLog)
                     publishExploitLog(logPrefix, rawLog)
                     lastRawLog = rawLog
                     lastProgressAt = SystemClock.elapsedRealtime()
@@ -164,6 +168,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
 
             val exitCode = process.waitFor()
             val rawLog = logFile.readTextIfPresent()
+            cacheP0Offset(bootId, rawLog)
             publishExploitLog(logPrefix, rawLog)
             val earlyOutput = process.inputStream.bufferedReader().use { it.readText() }.trim()
             require(exitCode == 0) {
@@ -235,6 +240,29 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         File("/proc/sys/kernel/random/boot_id").readText().trim()
     }.getOrNull()?.takeIf(String::isNotBlank)
 
+    private fun cachedP0Offset(bootId: String?): String? {
+        if (bootId == null) return null
+        val stored = app.getSharedPreferences(P0_CACHE, Application.MODE_PRIVATE)
+        if (stored.getString(P0_CACHE_BOOT_ID, null) != bootId) return null
+        return stored.getString(P0_CACHE_OFFSET, null)
+    }
+
+    private fun cacheP0Offset(bootId: String?, log: String) {
+        if (bootId == null) return
+        val match = P0_OFFSET_PATTERN.findAll(log).lastOrNull() ?: return
+        val offset = match.groupValues[1].toLongOrNull(16) ?: return
+        if (offset !in 0..P0_OFFSET_MAX || offset and P0_OFFSET_MASK != 0L) return
+        val value = "0x${offset.toString(16)}"
+        val stored = app.getSharedPreferences(P0_CACHE, Application.MODE_PRIVATE)
+        if (stored.getString(P0_CACHE_BOOT_ID, null) == bootId &&
+            stored.getString(P0_CACHE_OFFSET, null) == value
+        ) return
+        stored.edit()
+            .putString(P0_CACHE_BOOT_ID, bootId)
+            .putString(P0_CACHE_OFFSET, value)
+            .apply()
+    }
+
     private fun helperFile() = File(app.applicationInfo.nativeLibraryDir, "libcve43499root.so")
 
     private fun runHelper(vararg arguments: String): CommandResult {
@@ -300,8 +328,17 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         private const val INSTALL_RECEIPT = "install_receipt"
         private const val RECEIPT_BOOT_ID = "boot_id"
         private const val RECEIPT_VERIFIED = "verified"
+        private const val P0_CACHE = "p0_cache"
+        private const val P0_CACHE_BOOT_ID = "boot_id"
+        private const val P0_CACHE_OFFSET = "offset"
+        private const val P0_OFFSET_ENV = "SLIDE_P0_OFFSET"
+        private const val P0_OFFSET_MAX = 0x1f0000L
+        private const val P0_OFFSET_MASK = 0xffffL
         private val LOG_POLL_INTERVAL = 250.milliseconds
         private val ANSI_ESCAPE = Regex("\u001B\\[[0-?]*[ -/]*[@-~]")
+        private val P0_OFFSET_PATTERN = Regex(
+            "slide-kaslr-ok[^\\n]*slide=([0-9a-fA-F]{16})",
+        )
 
         private fun stripAnsi(value: String): String = ANSI_ESCAPE.replace(value, "").replace("\r", "")
     }
