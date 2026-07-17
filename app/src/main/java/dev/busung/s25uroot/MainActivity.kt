@@ -11,6 +11,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -57,8 +58,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -329,6 +334,9 @@ private fun SettingsPage(
     val context = LocalContext.current
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showColorDialog by remember { mutableStateOf(false) }
+    var languageMenuTop by remember { mutableStateOf(32.dp) }
+    var colorMenuTop by remember { mutableStateOf(32.dp) }
+    val density = LocalDensity.current
     val currentLanguageTag = AppPreferences.languageTag(context)
 
     if (showLanguageDialog) {
@@ -338,6 +346,7 @@ private fun SettingsPage(
                 it.tag.isEmpty() && currentLanguageTag.isEmpty() ||
                     it.tag.isNotEmpty() && currentLanguageTag.startsWith(it.tag.substringBefore('-'))
             }.coerceAtLeast(0),
+            topOffset = languageMenuTop,
             onSelected = { index ->
                 showLanguageDialog = false
                 AppPreferences.setLanguage(context, languageOptions[index].tag)
@@ -351,6 +360,7 @@ private fun SettingsPage(
         SideChoiceMenu(
             choices = colors.map { accentLabel(it) },
             selectedIndex = colors.indexOf(accentColor),
+            topOffset = colorMenuTop,
             onSelected = { index ->
                 showColorDialog = false
                 onAccentColorChanged(colors[index])
@@ -377,6 +387,9 @@ private fun SettingsPage(
         item { SectionLabel(stringResource(R.string.language)) }
         item {
             SettingsCard(
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    languageMenuTop = with(density) { coordinates.positionInWindow().y.toDp() }
+                },
                 icon = Icons.Rounded.Language,
                 title = stringResource(R.string.language),
                 description = stringResource(R.string.language_description),
@@ -387,6 +400,9 @@ private fun SettingsPage(
         item { SectionLabel(stringResource(R.string.appearance)) }
         item {
             SettingsCard(
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    colorMenuTop = with(density) { coordinates.positionInWindow().y.toDp() }
+                },
                 icon = Icons.Rounded.Palette,
                 title = stringResource(R.string.material_color),
                 description = stringResource(R.string.material_color_description),
@@ -409,6 +425,7 @@ private fun SectionLabel(text: String) {
 
 @Composable
 private fun SettingsCard(
+    modifier: Modifier = Modifier,
     icon: ImageVector,
     title: String,
     description: String,
@@ -417,7 +434,7 @@ private fun SettingsCard(
 ) {
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -453,6 +470,7 @@ private fun SettingsCard(
 private fun SideChoiceMenu(
     choices: List<String>,
     selectedIndex: Int,
+    topOffset: Dp,
     onSelected: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -463,14 +481,16 @@ private fun SideChoiceMenu(
             decorFitsSystemWindows = false,
         ),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 32.dp, end = 18.dp, bottom = 96.dp),
-            contentAlignment = Alignment.TopEnd,
-        ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val estimatedHeight = 16.dp + 56.dp * choices.size
+            val constrainedTop = minOf(
+                topOffset,
+                maxHeight - estimatedHeight - 24.dp,
+            ).coerceAtLeast(16.dp)
             Surface(
                 modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = constrainedTop, end = 18.dp)
                     .width(196.dp)
                     .heightIn(max = 620.dp),
                 shape = MaterialTheme.shapes.extraLarge,
