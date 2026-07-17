@@ -338,9 +338,12 @@ private fun GitHubCard() {
         ) {
             Icon(Icons.Rounded.Code, contentDescription = null)
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.github), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    stringResource(R.string.open_github),
+                    stringResource(R.string.github_card_title),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    stringResource(R.string.github_card_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
