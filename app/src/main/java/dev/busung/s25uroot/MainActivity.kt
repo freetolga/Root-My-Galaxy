@@ -254,7 +254,14 @@ private fun InstallStatusCard(installState: InstallUiState, onInstall: () -> Uni
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = installState.message, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = when (installState.phase) {
+                        InstallPhase.Ready -> stringResource(R.string.status_not_installed)
+                        InstallPhase.Installed -> stringResource(R.string.status_ksu_active)
+                        else -> installState.message
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Text(
                     text = when (installState.phase) {
                         InstallPhase.Installed -> stringResource(R.string.install_active_until_reboot)
@@ -264,17 +271,6 @@ private fun InstallStatusCard(installState: InstallUiState, onInstall: () -> Uni
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.72f),
                     maxLines = 1,
-                )
-            }
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Text(
-                    text = "API 36",
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                    style = MaterialTheme.typography.labelLarge,
                 )
             }
         }
