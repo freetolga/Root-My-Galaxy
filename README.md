@@ -12,7 +12,7 @@ from device offsets, native exploit payloads, and KernelSU build artifacts.
 
 The device feed and native payloads are maintained in
 [Root-My-Galaxy-Payloads](https://github.com/BuSung-dev/Root-My-Galaxy-Payloads).
-
+bbbbbbbb
 ## Application
 
 
